@@ -7,10 +7,10 @@ const JWT_SECRET = process.env.JWT_SECRET || 'development-secret';
 
 export interface AuthUser extends User {
   id: string;
-  email: string;
-  firstName?: string;
-  lastName?: string;
-  role: string;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  role: "admin" | "project_manager" | "engineer" | "subcontractor" | "client" | null;
 }
 
 // Mock user for development - replace with real auth in production
@@ -70,6 +70,17 @@ export async function signJWT(payload: any): Promise<string> {
       else resolve(token!);
     });
   });
+}
+
+// Function to get authenticated user from request (used in API routes)
+export async function requireAuth(request: NextRequest): Promise<AuthUser> {
+  const user = await getCurrentUser();
+  
+  if (!user) {
+    throw new Error('Unauthorized');
+  }
+  
+  return user;
 }
 
 export async function verifyJWT(token: string): Promise<any> {

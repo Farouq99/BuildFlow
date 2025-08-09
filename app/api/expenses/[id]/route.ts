@@ -6,7 +6,7 @@ import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
 
 const updateExpenseSchema = z.object({
-  category: z.string().optional(),
+  category: z.enum(['materials', 'labor', 'equipment', 'transportation', 'permits', 'utilities', 'subcontractor', 'overhead', 'other']).optional(),
   description: z.string().optional(),
   vendor: z.string().optional(),
   amount: z.string().optional(),
@@ -54,17 +54,24 @@ export const PATCH = withAuth(async (request, user, { params }) => {
     let totalAmount = undefined;
     if (validatedData.amount || validatedData.taxAmount) {
       const newAmount = parseFloat(validatedData.amount || expense.amount);
-      const newTaxAmount = parseFloat(validatedData.taxAmount || expense.taxAmount);
+      const newTaxAmount = parseFloat(validatedData.taxAmount || expense.taxAmount || '0');
       totalAmount = (newAmount + newTaxAmount).toString();
     }
 
     // Update the expense
+    const updateData: any = {
+      ...validatedData,
+      ...(totalAmount && { totalAmount }),
+      updatedAt: new Date(),
+    };
+    
+    // Convert dateIncurred string to Date object if provided
+    if (validatedData.dateIncurred) {
+      updateData.dateIncurred = new Date(validatedData.dateIncurred);
+    }
+    
     const [updatedExpense] = await db.update(expenses)
-      .set({
-        ...validatedData,
-        ...(totalAmount && { totalAmount }),
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(expenses.id, expenseId))
       .returning();
 

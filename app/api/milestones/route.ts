@@ -9,7 +9,8 @@ const createMilestoneSchema = z.object({
   projectId: z.string(),
   title: z.string().min(1, 'Title is required'),
   description: z.string().optional(),
-  dueDate: z.string(),
+  startDate: z.string(),
+  endDate: z.string(),
   status: z.enum(['pending', 'in_progress', 'completed', 'overdue']).default('pending'),
   priority: z.enum(['low', 'medium', 'high', 'critical']).default('medium'),
   assignedTo: z.string().optional(),
@@ -60,6 +61,8 @@ export async function POST(request: NextRequest) {
       .insert(milestones)
       .values({
         ...validatedData,
+        startDate: new Date(validatedData.startDate),
+        endDate: new Date(validatedData.endDate),
         createdAt: new Date(),
         updatedAt: new Date(),
       })
