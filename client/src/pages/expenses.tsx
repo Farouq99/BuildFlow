@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -50,6 +50,8 @@ export default function ExpensesPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState<AISuggestion | null>(null);
   const [isGettingAISuggestion, setIsGettingAISuggestion] = useState(false);
+  const [isBatchCategorizing, setIsBatchCategorizing] = useState(false);
+  const [batchSuggestions, setBatchSuggestions] = useState<{[key: string]: AISuggestion}>({});
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -144,6 +146,100 @@ export default function ExpensesPage() {
       toast({
         title: "Suggestion Applied",
         description: `Category set to "${aiSuggestion.category}"`,
+      });
+    }
+  };
+
+  // Batch categorize existing expenses
+  const categorizeBatchExpenses = async () => {
+    if (expenses.length === 0) return;
+
+    setIsBatchCategorizing(true);
+    setBatchSuggestions({});
+
+    try {
+      const expensesToCategorize = expenses
+        .filter((expense: any) => expense.category === 'other' || !expense.category)
+        .map((expense: any) => ({
+          id: expense.id,
+          description: expense.description,
+          vendor: expense.vendor,
+          amount: parseFloat(expense.amount),
+        }));
+
+      if (expensesToCategorize.length === 0) {
+        toast({
+          title: "No Expenses to Categorize",
+          description: "All expenses already have specific categories assigned.",
+        });
+        return;
+      }
+
+      const response = await apiRequest('/api/expenses/categorize?batch=true', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          expenses: expensesToCategorize
+        }),
+      });
+
+      const { suggestions } = response;
+      const suggestionMap: {[key: string]: AISuggestion} = {};
+      
+      suggestions.forEach((item: any) => {
+        suggestionMap[item.id] = item.suggestion;
+      });
+
+      setBatchSuggestions(suggestionMap);
+      
+      toast({
+        title: "Batch Categorization Complete",
+        description: `Got AI suggestions for ${suggestions.length} expenses. Review and apply as needed.`,
+      });
+
+    } catch (error) {
+      console.error('Batch categorization error:', error);
+      toast({
+        title: "Batch Categorization Failed",
+        description: "Unable to get AI suggestions for expenses. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBatchCategorizing(false);
+    }
+  };
+
+  // Apply batch suggestion for individual expense
+  const applyBatchSuggestion = async (expenseId: string, suggestion: AISuggestion) => {
+    try {
+      await apiRequest(`/api/expenses/${expenseId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: suggestion.category
+        }),
+      });
+
+      // Remove from batch suggestions
+      setBatchSuggestions(prev => {
+        const newSuggestions = { ...prev };
+        delete newSuggestions[expenseId];
+        return newSuggestions;
+      });
+
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/expenses'] });
+
+      toast({
+        title: "Category Updated",
+        description: `Expense categorized as "${suggestion.category}"`,
+      });
+
+    } catch (error) {
+      toast({
+        title: "Update Failed", 
+        description: "Could not update expense category",
+        variant: "destructive",
       });
     }
   };
@@ -313,13 +409,33 @@ export default function ExpensesPage() {
                 </CardDescription>
               </div>
               
-              <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="bg-construction-orange hover:bg-orange-600">
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Add Expense
-                  </Button>
-                </DialogTrigger>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={categorizeBatchExpenses}
+                  disabled={isBatchCategorizing || expenses.length === 0}
+                  variant="outline"
+                  className="border-construction-orange text-construction-orange hover:bg-construction-orange hover:text-white"
+                >
+                  {isBatchCategorizing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      AI Categorizing...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="mr-2 h-4 w-4" />
+                      AI Categorize All
+                    </>
+                  )}
+                </Button>
+                
+                <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-construction-orange hover:bg-orange-600">
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Add Expense
+                    </Button>
+                  </DialogTrigger>
                 <DialogContent className="max-w-2xl">
                   <DialogHeader>
                     <DialogTitle>Create New Expense</DialogTitle>
@@ -588,36 +704,106 @@ export default function ExpensesPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    expenses.map((expense: any) => (
-                      <TableRow key={expense.id}>
-                        <TableCell>
-                          {format(new Date(expense.dateIncurred), 'MMM dd, yyyy')}
-                        </TableCell>
-                        <TableCell>{expense.description}</TableCell>
-                        <TableCell className="capitalize">
-                          {expense.category.replace('_', ' ')}
-                        </TableCell>
-                        <TableCell>{expense.vendor || 'N/A'}</TableCell>
-                        <TableCell>${parseFloat(expense.totalAmount || 0).toLocaleString()}</TableCell>
-                        <TableCell>
-                          <Badge variant={expense.isApproved ? 'default' : 'secondary'}>
-                            {expense.isApproved ? 'Approved' : 'Pending'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {!expense.isApproved && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => approveExpenseMutation.mutate(expense.id)}
-                              disabled={approveExpenseMutation.isPending}
-                            >
-                              Approve
-                            </Button>
+                    expenses.map((expense: any) => {
+                      const hasBatchSuggestion = batchSuggestions[expense.id];
+                      
+                      return (
+                        <React.Fragment key={expense.id}>
+                          <TableRow className={hasBatchSuggestion ? 'border-l-4 border-l-blue-400' : ''}>
+                            <TableCell>
+                              {format(new Date(expense.dateIncurred), 'MMM dd, yyyy')}
+                            </TableCell>
+                            <TableCell>{expense.description}</TableCell>
+                            <TableCell className="capitalize">
+                              {expense.category.replace('_', ' ')}
+                              {hasBatchSuggestion && (
+                                <Badge variant="outline" className="ml-2 text-xs border-blue-400 text-blue-700">
+                                  AI Suggestion Available
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>{expense.vendor || 'N/A'}</TableCell>
+                            <TableCell>${parseFloat(expense.totalAmount || 0).toLocaleString()}</TableCell>
+                            <TableCell>
+                              <Badge variant={expense.isApproved ? 'default' : 'secondary'}>
+                                {expense.isApproved ? 'Approved' : 'Pending'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1">
+                                {!expense.isApproved && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => approveExpenseMutation.mutate(expense.id)}
+                                    disabled={approveExpenseMutation.isPending}
+                                  >
+                                    Approve
+                                  </Button>
+                                )}
+                                {hasBatchSuggestion && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => applyBatchSuggestion(expense.id, hasBatchSuggestion)}
+                                    className="text-blue-600 hover:bg-blue-50"
+                                  >
+                                    Apply AI
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                          
+                          {/* AI Suggestion Row */}
+                          {hasBatchSuggestion && (
+                            <TableRow className="bg-blue-50/50 border-l-4 border-l-blue-400">
+                              <TableCell colSpan={7}>
+                                <div className="flex items-center justify-between py-2">
+                                  <div className="flex items-start gap-2">
+                                    <Sparkles className="h-4 w-4 text-blue-600 mt-0.5" />
+                                    <div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-sm font-medium text-blue-900">
+                                          AI Suggests: {EXPENSE_CATEGORIES.find(cat => cat.value === hasBatchSuggestion.category)?.label}
+                                        </span>
+                                        <Badge variant="secondary" className="text-xs">
+                                          {Math.round(hasBatchSuggestion.confidence * 100)}% confident
+                                        </Badge>
+                                      </div>
+                                      <p className="text-xs text-blue-700 mt-1">
+                                        {hasBatchSuggestion.reasoning}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      size="sm"
+                                      onClick={() => applyBatchSuggestion(expense.id, hasBatchSuggestion)}
+                                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                                    >
+                                      Apply
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => setBatchSuggestions(prev => {
+                                        const newSuggestions = { ...prev };
+                                        delete newSuggestions[expense.id];
+                                        return newSuggestions;
+                                      })}
+                                      className="text-gray-600"
+                                    >
+                                      Dismiss
+                                    </Button>
+                                  </div>
+                                </div>
+                              </TableCell>
+                            </TableRow>
                           )}
-                        </TableCell>
-                      </TableRow>
-                    ))
+                        </React.Fragment>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
