@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { insertProjectSchema, insertDocumentSchema, insertBudgetCategorySchema, insertActivitySchema, insertCalculatorResultSchema } from "@shared/schema";
+import { insertProjectSchema, insertDocumentSchema, insertBudgetCategorySchema, insertActivitySchema, insertCalculatorResultSchema, insertExpenseSchema, insertPayrollEntrySchema } from "@shared/schema";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -13,6 +13,9 @@ const uploadsDir = path.join(process.cwd(), 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
+
+// CAD file extensions that are supported
+const CAD_FILE_EXTENSIONS = ['.dwg', '.dxf', '.rvt', '.rfa', '.ifc', '.step', '.stp', '.iges', '.igs', '.3dm', '.skp'];
 
 const upload = multer({
   storage: multer.diskStorage({
@@ -25,7 +28,31 @@ const upload = multer({
     }
   }),
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB limit
+    fileSize: 100 * 1024 * 1024, // 100MB limit for CAD files
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept all common document and CAD file types
+    const allowedTypes = [
+      // Documents
+      'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'text/plain', 'text/csv',
+      // Images
+      'image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'image/tiff',
+      // CAD files (often have generic mime types)
+      'application/octet-stream', 'application/x-autocad', 'model/vnd.dwf'
+    ];
+    
+    const fileExt = path.extname(file.originalname).toLowerCase();
+    const isCADFile = CAD_FILE_EXTENSIONS.includes(fileExt);
+    const isMimeAllowed = allowedTypes.includes(file.mimetype);
+    
+    if (isMimeAllowed || isCADFile) {
+      cb(null, true);
+    } else {
+      cb(new Error(`File type ${file.mimetype} not allowed. Supported: PDF, Office docs, images, AutoCAD (.dwg, .dxf), Revit (.rvt, .rfa), IFC, STEP, and other CAD formats.`));
+    }
   }
 });
 
@@ -204,15 +231,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
+      const fileExt = path.extname(file.originalname).toLowerCase();
+      const isCADFile = CAD_FILE_EXTENSIONS.includes(fileExt);
+      
       const documentData = {
         projectId: req.params.id,
         uploadedBy: userId,
         name: req.body.name || file.originalname,
         originalName: file.originalname,
         fileType: file.mimetype,
+        fileExtension: fileExt,
         fileSize: file.size,
         filePath: file.path,
-        category: req.body.category || 'general',
+        category: req.body.category || 'other',
+        isCADFile,
+        cadFileType: isCADFile ? fileExt.replace('.', '') : undefined,
+        description: req.body.description || '',
+        tags: req.body.tags ? req.body.tags.split(',').map((tag: string) => tag.trim()) : [],
       };
 
       const document = await storage.createDocument(documentData);
@@ -307,16 +342,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/calculator/results', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const resultData = insertCalculatorResultSchema.parse({
-        ...req.body,
+      const resultData = {
+        ...insertCalculatorResultSchema.parse(req.body),
         userId,
-      });
+      };
       
       const result = await storage.saveCalculatorResult(resultData);
       res.json(result);
     } catch (error) {
       console.error("Error saving calculator result:", error);
       res.status(500).json({ message: "Failed to save calculator result" });
+    }
+  });
+
+  // Expense routes
+  app.get('/api/projects/:id/expenses', isAuthenticated, async (req: any, res) => {
+    try {
+      const expenses = await storage.getExpenses(req.params.id);
+      res.json(expenses);
+    } catch (error) {
+      console.error("Error fetching expenses:", error);
+      res.status(500).json({ message: "Failed to fetch expenses" });
+    }
+  });
+
+  app.post('/api/projects/:id/expenses', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const expenseData = {
+        ...insertExpenseSchema.parse(req.body),
+        projectId: req.params.id,
+        submittedBy: userId,
+      };
+      
+      const expense = await storage.createExpense(expenseData);
+      res.json(expense);
+    } catch (error) {
+      console.error("Error creating expense:", error);
+      res.status(500).json({ message: "Failed to create expense" });
+    }
+  });
+
+  app.patch('/api/expenses/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const updates = req.body;
+      const expense = await storage.updateExpense(req.params.id, updates);
+      res.json(expense);
+    } catch (error) {
+      console.error("Error updating expense:", error);
+      res.status(500).json({ message: "Failed to update expense" });
+    }
+  });
+
+  app.patch('/api/expenses/:id/approve', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const expense = await storage.approveExpense(req.params.id, userId);
+      res.json(expense);
+    } catch (error) {
+      console.error("Error approving expense:", error);
+      res.status(500).json({ message: "Failed to approve expense" });
+    }
+  });
+
+  // Payroll routes
+  app.get('/api/projects/:id/payroll', isAuthenticated, async (req: any, res) => {
+    try {
+      const payrollEntries = await storage.getPayrollEntries(req.params.id);
+      res.json(payrollEntries);
+    } catch (error) {
+      console.error("Error fetching payroll entries:", error);
+      res.status(500).json({ message: "Failed to fetch payroll entries" });
+    }
+  });
+
+  app.post('/api/projects/:id/payroll', isAuthenticated, async (req: any, res) => {
+    try {
+      const entryData = {
+        ...insertPayrollEntrySchema.parse(req.body),
+        projectId: req.params.id,
+      };
+      
+      const entry = await storage.createPayrollEntry(entryData);
+      res.json(entry);
+    } catch (error) {
+      console.error("Error creating payroll entry:", error);
+      res.status(500).json({ message: "Failed to create payroll entry" });
+    }
+  });
+
+  app.patch('/api/payroll/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const updates = req.body;
+      const entry = await storage.updatePayrollEntry(req.params.id, updates);
+      res.json(entry);
+    } catch (error) {
+      console.error("Error updating payroll entry:", error);
+      res.status(500).json({ message: "Failed to update payroll entry" });
     }
   });
 

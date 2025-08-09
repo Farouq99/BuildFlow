@@ -6,6 +6,8 @@ import {
   activities,
   calculatorResults,
   projectMembers,
+  expenses,
+  payrollEntries,
   type User,
   type UpsertUser,
   type Project,
@@ -19,6 +21,10 @@ import {
   type CalculatorResult,
   type InsertCalculatorResult,
   type ProjectMember,
+  type Expense,
+  type InsertExpense,
+  type PayrollEntry,
+  type InsertPayrollEntry,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql } from "drizzle-orm";
@@ -55,12 +61,25 @@ export interface IStorage {
   getCalculatorResults(userId: string, projectId?: string): Promise<CalculatorResult[]>;
   saveCalculatorResult(result: InsertCalculatorResult & { userId: string }): Promise<CalculatorResult>;
   
+  // Expense operations
+  getExpenses(projectId: string): Promise<(Expense & { submittedBy: User; approvedBy?: User; budgetCategory?: BudgetCategory })[]>;
+  createExpense(expense: InsertExpense & { submittedBy: string }): Promise<Expense>;
+  updateExpense(id: string, updates: Partial<InsertExpense & { approvedBy?: string }>): Promise<Expense>;
+  approveExpense(id: string, approvedBy: string): Promise<Expense>;
+  
+  // Payroll operations
+  getPayrollEntries(projectId: string): Promise<(PayrollEntry & { employee?: User })[]>;
+  createPayrollEntry(entry: InsertPayrollEntry): Promise<PayrollEntry>;
+  updatePayrollEntry(id: string, updates: Partial<InsertPayrollEntry>): Promise<PayrollEntry>;
+  
   // Dashboard data
   getDashboardStats(userId: string): Promise<{
     activeProjects: number;
     totalBudget: number;
     teamMembers: number;
     completionRate: number;
+    totalExpenses?: number;
+    pendingExpenses?: number;
   }>;
 }
 
@@ -174,26 +193,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDocuments(projectId: string): Promise<(Document & { uploader: User })[]> {
-    return await db
+    const result = await db
       .select({
-        id: documents.id,
-        projectId: documents.projectId,
-        uploadedBy: documents.uploadedBy,
-        name: documents.name,
-        originalName: documents.originalName,
-        fileType: documents.fileType,
-        fileSize: documents.fileSize,
-        filePath: documents.filePath,
-        category: documents.category,
-        version: documents.version,
-        isLatest: documents.isLatest,
-        uploadedAt: documents.uploadedAt,
+        document: documents,
         uploader: users,
       })
       .from(documents)
       .innerJoin(users, eq(documents.uploadedBy, users.id))
       .where(eq(documents.projectId, projectId))
       .orderBy(desc(documents.uploadedAt));
+
+    return result.map(row => ({
+      ...row.document,
+      uploader: row.uploader,
+    })) as any;
   }
 
   async createDocument(documentData: InsertDocument & { uploadedBy: string }): Promise<Document> {
@@ -281,11 +294,93 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
+  async getExpenses(projectId: string): Promise<(Expense & { submittedBy: User; approvedBy?: User; budgetCategory?: BudgetCategory })[]> {
+    const result = await db
+      .select({
+        expense: expenses,
+        submittedBy: users,
+        budgetCategory: budgetCategories,
+      })
+      .from(expenses)
+      .innerJoin(users, eq(expenses.submittedBy, users.id))
+      .leftJoin(budgetCategories, eq(expenses.budgetCategoryId, budgetCategories.id))
+      .where(eq(expenses.projectId, projectId))
+      .orderBy(desc(expenses.createdAt));
+
+    return result.map(row => ({
+      ...row.expense,
+      submittedBy: row.submittedBy,
+      budgetCategory: row.budgetCategory || undefined,
+    })) as any;
+  }
+
+  async createExpense(expenseData: InsertExpense & { submittedBy: string }): Promise<Expense> {
+    const [expense] = await db
+      .insert(expenses)
+      .values(expenseData)
+      .returning();
+    return expense;
+  }
+
+  async updateExpense(id: string, updates: Partial<InsertExpense & { approvedBy?: string }>): Promise<Expense> {
+    const [expense] = await db
+      .update(expenses)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(expenses.id, id))
+      .returning();
+    return expense;
+  }
+
+  async approveExpense(id: string, approvedBy: string): Promise<Expense> {
+    const [expense] = await db
+      .update(expenses)
+      .set({ status: 'approved', approvedBy, updatedAt: new Date() })
+      .where(eq(expenses.id, id))
+      .returning();
+    return expense;
+  }
+
+  async getPayrollEntries(projectId: string): Promise<(PayrollEntry & { employee?: User })[]> {
+    const result = await db
+      .select({
+        payrollEntry: payrollEntries,
+        employee: users,
+      })
+      .from(payrollEntries)
+      .leftJoin(users, eq(payrollEntries.employeeId, users.id))
+      .where(eq(payrollEntries.projectId, projectId))
+      .orderBy(desc(payrollEntries.createdAt));
+
+    return result.map(row => ({
+      ...row.payrollEntry,
+      employee: row.employee || undefined,
+    })) as any;
+  }
+
+  async createPayrollEntry(entryData: InsertPayrollEntry): Promise<PayrollEntry> {
+    const [entry] = await db
+      .insert(payrollEntries)
+      .values(entryData)
+      .returning();
+    return entry;
+  }
+
+  async updatePayrollEntry(id: string, updates: Partial<InsertPayrollEntry>): Promise<PayrollEntry> {
+    const [entry] = await db
+      .update(payrollEntries)
+      .set(updates)
+      .where(eq(payrollEntries.id, id))
+      .returning();
+    return entry;
+  }
+
   async getDashboardStats(userId: string): Promise<{
     activeProjects: number;
     totalBudget: number;
     teamMembers: number;
     completionRate: number;
+    totalExpenses?: number;
+    pendingExpenses?: number;
   }> {
     // Get user's projects
     const userProjects = await this.getProjects(userId);

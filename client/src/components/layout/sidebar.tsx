@@ -7,6 +7,8 @@ const navigationItems = [
   { href: "/calculators", icon: "fas fa-calculator", label: "Calculators" },
   { href: "/documents", icon: "fas fa-file-alt", label: "Documents" },
   { href: "/team", icon: "fas fa-users", label: "Team" },
+  { href: "/expenses", icon: "fas fa-receipt", label: "Expenses" },
+  { href: "/payroll", icon: "fas fa-money-check-alt", label: "Payroll" },
 ];
 
 export default function Sidebar() {
