@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { milestones } from '@/lib/schema';
-import { requireAuth } from '@/lib/auth';
+import { withAuth } from '@/lib/auth';
 import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
 
@@ -20,13 +20,8 @@ const createMilestoneSchema = z.object({
 
 const updateMilestoneSchema = createMilestoneSchema.partial();
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request: NextRequest, user) => {
   try {
-    const user = await requireAuth(request);
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
 
@@ -45,14 +40,10 @@ export async function GET(request: NextRequest) {
     console.error('Error fetching milestones:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request: NextRequest, user) => {
   try {
-    const user = await requireAuth(request);
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const body = await request.json();
     const validatedData = createMilestoneSchema.parse(body);
@@ -76,15 +67,11 @@ export async function POST(request: NextRequest) {
     console.error('Error creating milestone:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+});
 
 // Handle milestone reordering
-export async function PUT(request: NextRequest) {
+export const PUT = withAuth(async (request: NextRequest, user) => {
   try {
-    const user = await requireAuth(request);
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const { pathname } = new URL(request.url);
     
@@ -111,4 +98,4 @@ export async function PUT(request: NextRequest) {
     console.error('Error reordering milestones:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+});

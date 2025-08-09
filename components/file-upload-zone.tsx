@@ -23,7 +23,9 @@ export function FileUploadZone({ compact = false, onFilesUploaded }: FileUploadZ
       'application/dwg': ['.dwg'],
       'application/dxf': ['.dxf'],
       'application/x-autocad': ['.dwg', '.dxf'],
-      'model/*': ['.rvt', '.rfa', '.ifc', '.step', '.stp'],
+      'application/octet-stream': ['.rvt', '.rfa', '.ifc', '.step', '.stp'],
+      'application/step': ['.step', '.stp'],
+      'application/x-step': ['.step', '.stp'],
     },
     maxSize: 100 * 1024 * 1024, // 100MB
   });

@@ -35,8 +35,14 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       return MOCK_USER;
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
-    return decoded.user;
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      return decoded.user;
+    } catch (jwtError) {
+      console.error('JWT verification failed:', jwtError);
+      // For development, fallback to mock user
+      return MOCK_USER;
+    }
   } catch (error) {
     console.error('Error getting current user:', error);
     // For development, return mock user

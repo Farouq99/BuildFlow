@@ -64,6 +64,7 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 // Project status enum
 export const projectStatusEnum = pgEnum('project_status', [
   'active',
+  'planning',
   'completed', 
   'on_hold',
   'cancelled'
