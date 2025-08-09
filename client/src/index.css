@@ -1,0 +1,154 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(0 0% 100%);
+  --foreground: hsl(222 30% 20%);
+  --card: hsl(210 20% 98%);
+  --card-foreground: hsl(222 30% 20%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(222 30% 20%);
+  --primary: hsl(16 100% 60%);
+  --primary-foreground: hsl(0 0% 100%);
+  --secondary: hsl(216 70% 27%);
+  --secondary-foreground: hsl(0 0% 100%);
+  --muted: hsl(210 25% 90%);
+  --muted-foreground: hsl(210 15% 45%);
+  --accent: hsl(210 25% 92%);
+  --accent-foreground: hsl(216 70% 27%);
+  --destructive: hsl(356 91% 54%);
+  --destructive-foreground: hsl(0 0% 100%);
+  --border: hsl(214 32% 91%);
+  --input: hsl(214 32% 91%);
+  --ring: hsl(16 100% 60%);
+  --chart-1: hsl(16 100% 60%);
+  --chart-2: hsl(151 60% 36%);
+  --chart-3: hsl(42 93% 56%);
+  --chart-4: hsl(147 78% 42%);
+  --chart-5: hsl(341 75% 51%);
+  --sidebar: hsl(210 20% 98%);
+  --sidebar-foreground: hsl(222 30% 20%);
+  --sidebar-primary: hsl(16 100% 60%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(210 25% 92%);
+  --sidebar-accent-foreground: hsl(216 70% 27%);
+  --sidebar-border: hsl(214 32% 91%);
+  --sidebar-ring: hsl(16 100% 60%);
+  --font-sans: Inter, sans-serif;
+  --font-serif: Georgia, serif;
+  --font-mono: Menlo, monospace;
+  --radius: 0.5rem;
+  --construction-orange: hsl(16 100% 60%);
+  --steel-blue: hsl(216 100% 27%);
+  --bright-blue: hsl(203 78% 37%);
+  --construction-gray: hsl(200 12% 30%);
+  --light-gray: hsl(210 9% 44%);
+  --lighter-gray: hsl(210 9% 57%);
+}
+
+.dark {
+  --background: hsl(222 30% 7%);
+  --foreground: hsl(210 40% 98%);
+  --card: hsl(222 30% 10%);
+  --card-foreground: hsl(210 40% 98%);
+  --popover: hsl(222 30% 7%);
+  --popover-foreground: hsl(210 40% 98%);
+  --primary: hsl(16 100% 60%);
+  --primary-foreground: hsl(0 0% 100%);
+  --secondary: hsl(216 70% 27%);
+  --secondary-foreground: hsl(0 0% 100%);
+  --muted: hsl(222 30% 15%);
+  --muted-foreground: hsl(210 15% 60%);
+  --accent: hsl(222 30% 15%);
+  --accent-foreground: hsl(210 40% 98%);
+  --destructive: hsl(356 91% 54%);
+  --destructive-foreground: hsl(0 0% 100%);
+  --border: hsl(222 30% 18%);
+  --input: hsl(222 30% 18%);
+  --ring: hsl(16 100% 60%);
+  --chart-1: hsl(16 100% 60%);
+  --chart-2: hsl(151 60% 36%);
+  --chart-3: hsl(42 93% 56%);
+  --chart-4: hsl(147 78% 42%);
+  --chart-5: hsl(341 75% 51%);
+  --sidebar: hsl(222 30% 10%);
+  --sidebar-foreground: hsl(210 40% 98%);
+  --sidebar-primary: hsl(16 100% 60%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(222 30% 15%);
+  --sidebar-accent-foreground: hsl(210 40% 98%);
+  --sidebar-border: hsl(222 30% 18%);
+  --sidebar-ring: hsl(16 100% 60%);
+  --construction-orange: hsl(16 100% 60%);
+  --steel-blue: hsl(216 100% 27%);
+  --bright-blue: hsl(203 78% 37%);
+  --construction-gray: hsl(200 12% 70%);
+  --light-gray: hsl(210 9% 65%);
+  --lighter-gray: hsl(210 9% 50%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .construction-orange {
+    color: var(--construction-orange);
+  }
+  
+  .bg-construction-orange {
+    background-color: var(--construction-orange);
+  }
+  
+  .border-construction-orange {
+    border-color: var(--construction-orange);
+  }
+  
+  .steel-blue {
+    color: var(--steel-blue);
+  }
+  
+  .bg-steel-blue {
+    background-color: var(--steel-blue);
+  }
+  
+  .bright-blue {
+    color: var(--bright-blue);
+  }
+  
+  .bg-bright-blue {
+    background-color: var(--bright-blue);
+  }
+  
+  .construction-gray {
+    color: var(--construction-gray);
+  }
+  
+  .bg-construction-gray {
+    background-color: var(--construction-gray);
+  }
+  
+  .text-construction-gray {
+    color: var(--construction-gray);
+  }
+  
+  .text-light-gray {
+    color: var(--light-gray);
+  }
+  
+  .bg-light-gray {
+    background-color: var(--light-gray);
+  }
+  
+  .text-lighter-gray {
+    color: var(--lighter-gray);
+  }
+}
