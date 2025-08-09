@@ -15,6 +15,25 @@ const nextConfig = {
     AWS_REGION: process.env.AWS_REGION,
     REDIS_URL: process.env.REDIS_URL,
   },
+  // Production optimizations
+  output: 'standalone',
+  compress: true,
+  poweredByHeader: false,
+  // Enable proper error logging in production
+  logging: {
+    fetches: {
+      fullUrl: true,
+    },
+  },
+  // Health check endpoint for deployment
+  async rewrites() {
+    return [
+      {
+        source: '/health',
+        destination: '/api/health',
+      },
+    ];
+  },
   webpack: (config) => {
     config.externals.push({
       'utf-8-validate': 'commonjs utf-8-validate',

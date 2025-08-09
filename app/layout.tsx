@@ -11,8 +11,6 @@ export const metadata: Metadata = {
   title: 'ConstructPro - Construction Project Management',
   description: 'Comprehensive construction management platform with seamless file sharing, built-in calculators, and unified project management.',
   manifest: '/manifest.json',
-  themeColor: '#FF6B35',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
 };
 
 export default function RootLayout({
@@ -25,7 +23,7 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" href="/icon-192x192.png" />
-        <meta name="theme-color" content="#FF6B35" />
+
       </head>
       <body className={inter.className}>
         <Providers>

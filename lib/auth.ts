@@ -27,7 +27,7 @@ const MOCK_USER: AuthUser = {
 
 export async function getCurrentUser(): Promise<AuthUser | null> {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const token = cookieStore.get('auth-token')?.value;
 
     if (!token) {
