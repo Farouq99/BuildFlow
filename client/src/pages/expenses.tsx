@@ -14,7 +14,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertExpenseSchema } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
-import { PlusCircle, DollarSign, Calendar, User, Receipt } from "lucide-react";
+import { PlusCircle, DollarSign, Calendar, User, Receipt, Wand2, Loader2, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import type { Expense, BudgetCategory } from "@shared/schema";
 import { z } from "zod";
@@ -28,31 +28,28 @@ const expenseFormSchema = insertExpenseSchema.extend({
 type ExpenseFormData = z.infer<typeof expenseFormSchema>;
 
 const EXPENSE_CATEGORIES = [
-  { value: 'payroll', label: 'Payroll' },
-  { value: 'contract_labor', label: 'Contract Labor' },
   { value: 'materials', label: 'Materials' },
-  { value: 'equipment_rental', label: 'Equipment Rental' },
-  { value: 'equipment_purchase', label: 'Equipment Purchase' },
-  { value: 'fuel', label: 'Fuel' },
-  { value: 'permits_fees', label: 'Permits & Fees' },
-  { value: 'insurance', label: 'Insurance' },
+  { value: 'labor', label: 'Labor' },
+  { value: 'equipment', label: 'Equipment' },
+  { value: 'transportation', label: 'Transportation' },
+  { value: 'permits', label: 'Permits' },
   { value: 'utilities', label: 'Utilities' },
-  { value: 'professional_services', label: 'Professional Services' },
-  { value: 'travel', label: 'Travel' },
-  { value: 'office_supplies', label: 'Office Supplies' },
-  { value: 'safety_equipment', label: 'Safety Equipment' },
-  { value: 'tools', label: 'Tools' },
-  { value: 'subcontractors', label: 'Subcontractors' },
-  { value: 'waste_disposal', label: 'Waste Disposal' },
-  { value: 'site_preparation', label: 'Site Preparation' },
-  { value: 'inspection_fees', label: 'Inspection Fees' },
-  { value: 'legal_fees', label: 'Legal Fees' },
+  { value: 'subcontractor', label: 'Subcontractor' },
+  { value: 'overhead', label: 'Overhead' },
   { value: 'other', label: 'Other' },
 ];
+
+interface AISuggestion {
+  category: string;
+  confidence: number;
+  reasoning: string;
+}
 
 export default function ExpensesPage() {
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState<AISuggestion | null>(null);
+  const [isGettingAISuggestion, setIsGettingAISuggestion] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -63,7 +60,8 @@ export default function ExpensesPage() {
 
   // Fetch expenses for selected project
   const { data: expenses = [], isLoading: expensesLoading } = useQuery({
-    queryKey: ['/api/projects', selectedProjectId, 'expenses'],
+    queryKey: ['/api/expenses', { projectId: selectedProjectId }],
+    queryFn: () => apiRequest(`/api/expenses?projectId=${selectedProjectId}`),
     enabled: !!selectedProjectId,
   });
 
@@ -83,25 +81,92 @@ export default function ExpensesPage() {
       totalAmount: 0,
       vendor: "",
       notes: "",
-      expenseDate: new Date().toISOString().split('T')[0],
+      dateIncurred: new Date().toISOString().split('T')[0],
     },
   });
 
+  // AI categorization function
+  const getAISuggestion = async () => {
+    const description = form.getValues('description');
+    const vendor = form.getValues('vendor');
+    const amount = form.getValues('amount');
+
+    if (!description.trim()) {
+      toast({
+        title: "Description Required",
+        description: "Please add a description first to get AI categorization suggestions",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGettingAISuggestion(true);
+    setAiSuggestion(null);
+
+    try {
+      const response = await apiRequest('/api/expenses/categorize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description,
+          vendor: vendor || undefined,
+          amount: amount || undefined,
+        }),
+      });
+
+      const { suggestion } = response;
+      setAiSuggestion(suggestion);
+
+      // Auto-apply if confidence is high
+      if (suggestion.confidence > 0.8) {
+        form.setValue('category', suggestion.category);
+        toast({
+          title: "AI Suggestion Applied",
+          description: `Automatically set category to "${suggestion.category}" (${Math.round(suggestion.confidence * 100)}% confidence)`,
+        });
+      }
+    } catch (error) {
+      console.error('AI categorization error:', error);
+      toast({
+        title: "AI Suggestion Failed",
+        description: "Unable to get AI category suggestion. Please select category manually.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGettingAISuggestion(false);
+    }
+  };
+
+  // Apply AI suggestion manually
+  const applyAISuggestion = () => {
+    if (aiSuggestion) {
+      form.setValue('category', aiSuggestion.category);
+      toast({
+        title: "Suggestion Applied",
+        description: `Category set to "${aiSuggestion.category}"`,
+      });
+    }
+  };
+
   const createExpenseMutation = useMutation({
     mutationFn: async (data: ExpenseFormData) => {
-      return apiRequest(`/api/projects/${selectedProjectId}/expenses`, {
+      return apiRequest('/api/expenses', {
         method: 'POST',
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          projectId: selectedProjectId,
+        }),
         headers: { 'Content-Type': 'application/json' },
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/projects', selectedProjectId, 'expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/expenses'] });
       toast({
         title: "Success",
         description: "Expense created successfully",
       });
       setIsCreateDialogOpen(false);
+      setAiSuggestion(null);
       form.reset();
     },
     onError: () => {
@@ -120,7 +185,7 @@ export default function ExpensesPage() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/projects', selectedProjectId, 'expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/expenses'] });
       toast({
         title: "Success",
         description: "Expense approved successfully",
@@ -150,22 +215,14 @@ export default function ExpensesPage() {
     }
   }, [watchAmount, watchTaxAmount, form]);
 
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case 'approved': return 'default';
-      case 'pending': return 'secondary';
-      case 'paid': return 'outline';
-      case 'rejected': return 'destructive';
-      default: return 'secondary';
-    }
-  };
+  // Status badge handled directly in component using isApproved boolean
 
   const totalExpenses = expenses.reduce((sum: number, expense: any) => {
     return sum + parseFloat(expense.totalAmount || 0);
   }, 0);
 
-  const pendingExpenses = expenses.filter((expense: any) => expense.status === 'pending').length;
-  const approvedExpenses = expenses.filter((expense: any) => expense.status === 'approved').length;
+  const pendingExpenses = expenses.filter((expense: any) => !expense.isApproved).length;
+  const approvedExpenses = expenses.filter((expense: any) => expense.isApproved).length;
 
   return (
     <div className="flex-1 space-y-6 p-8 pt-6">
@@ -297,8 +354,25 @@ export default function ExpensesPage() {
                           name="category"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Category</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormLabel className="flex items-center justify-between">
+                                Category
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={getAISuggestion}
+                                  disabled={isGettingAISuggestion}
+                                  className="h-auto p-1 text-construction-orange hover:text-orange-600"
+                                >
+                                  {isGettingAISuggestion ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Sparkles className="h-4 w-4" />
+                                  )}
+                                  <span className="ml-1 text-xs">AI Suggest</span>
+                                </Button>
+                              </FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl>
                                   <SelectTrigger>
                                     <SelectValue placeholder="Select category" />
@@ -313,6 +387,39 @@ export default function ExpensesPage() {
                                 </SelectContent>
                               </Select>
                               <FormMessage />
+                              
+                              {/* AI Suggestion Display */}
+                              {aiSuggestion && (
+                                <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <Wand2 className="h-4 w-4 text-blue-600" />
+                                        <span className="text-sm font-medium text-blue-900">
+                                          AI Suggests: {EXPENSE_CATEGORIES.find(cat => cat.value === aiSuggestion.category)?.label}
+                                        </span>
+                                        <Badge variant="secondary" className="text-xs">
+                                          {Math.round(aiSuggestion.confidence * 100)}% confident
+                                        </Badge>
+                                      </div>
+                                      <p className="text-xs text-blue-700 mt-1">
+                                        {aiSuggestion.reasoning}
+                                      </p>
+                                    </div>
+                                    {field.value !== aiSuggestion.category && (
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={applyAISuggestion}
+                                        className="ml-2 h-8 text-xs"
+                                      >
+                                        Apply
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
                             </FormItem>
                           )}
                         />
@@ -377,7 +484,7 @@ export default function ExpensesPage() {
 
                         <FormField
                           control={form.control}
-                          name="expenseDate"
+                          name="dateIncurred"
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Expense Date</FormLabel>
@@ -484,7 +591,7 @@ export default function ExpensesPage() {
                     expenses.map((expense: any) => (
                       <TableRow key={expense.id}>
                         <TableCell>
-                          {format(new Date(expense.expenseDate), 'MMM dd, yyyy')}
+                          {format(new Date(expense.dateIncurred), 'MMM dd, yyyy')}
                         </TableCell>
                         <TableCell>{expense.description}</TableCell>
                         <TableCell className="capitalize">
@@ -493,12 +600,12 @@ export default function ExpensesPage() {
                         <TableCell>{expense.vendor || 'N/A'}</TableCell>
                         <TableCell>${parseFloat(expense.totalAmount || 0).toLocaleString()}</TableCell>
                         <TableCell>
-                          <Badge variant={getStatusBadgeVariant(expense.status)}>
-                            {expense.status}
+                          <Badge variant={expense.isApproved ? 'default' : 'secondary'}>
+                            {expense.isApproved ? 'Approved' : 'Pending'}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {expense.status === 'pending' && (
+                          {!expense.isApproved && (
                             <Button
                               size="sm"
                               variant="outline"
