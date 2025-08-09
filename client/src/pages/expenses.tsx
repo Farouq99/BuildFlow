@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -304,7 +304,7 @@ export default function ExpensesPage() {
   const watchAmount = form.watch("amount");
   const watchTaxAmount = form.watch("taxAmount");
 
-  useState(() => {
+  useEffect(() => {
     const totalAmount = (watchAmount || 0) + (watchTaxAmount || 0);
     if (totalAmount !== form.getValues("totalAmount")) {
       form.setValue("totalAmount", totalAmount);
@@ -676,6 +676,7 @@ export default function ExpensesPage() {
                   </Form>
                 </DialogContent>
               </Dialog>
+              </div>
             </CardHeader>
             <CardContent>
               <Table>
