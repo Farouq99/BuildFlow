@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, Calendar, Users, DollarSign, Clock, MessageSquare, Timeline } from 'lucide-react';
+import { ArrowLeft, Calendar, Users, DollarSign, Clock, MessageSquare, Activity } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { format } from 'date-fns';
@@ -167,7 +167,7 @@ export default function ProjectDetails() {
             <span className="hidden sm:inline">Overview</span>
           </TabsTrigger>
           <TabsTrigger value="timeline" className="flex items-center gap-2">
-            <Timeline className="h-4 w-4" />
+            <Activity className="h-4 w-4" />
             <span className="hidden sm:inline">Timeline</span>
           </TabsTrigger>
           <TabsTrigger value="chat" className="flex items-center gap-2">
