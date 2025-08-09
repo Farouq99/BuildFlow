@@ -177,13 +177,13 @@ export const milestones = pgTable("milestones", {
   description: text("description"),
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").notNull(),
-  status: varchar("status").default('pending'), // pending, in-progress, completed, overdue
-  priority: varchar("priority").default('medium'), // low, medium, high, critical
+  status: text("status", { enum: ["pending", "in_progress", "completed", "overdue"] }).default("pending"),
+  priority: text("priority", { enum: ["low", "medium", "high", "critical"] }).default("medium"),
   assignedTo: varchar("assigned_to").references(() => users.id),
   dependencies: text("dependencies").array(), // Array of milestone IDs this depends on
   progress: integer("progress").default(0), // 0-100 percentage
   color: varchar("color").default('#3b82f6'), // Color for timeline display
-  position: integer("position").default(0), // For drag-and-drop ordering
+  order: integer("order").default(0), // For drag-and-drop ordering
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -201,21 +201,18 @@ export type InsertMilestone = z.infer<typeof insertMilestoneSchema>;
 export const chatMessages = pgTable("chat_messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   projectId: varchar("project_id").notNull().references(() => projects.id),
-  userId: varchar("user_id").notNull().references(() => users.id),
+  userId: varchar("user_id").notNull(),
+  userName: text("user_name").notNull(),
+  userAvatar: text("user_avatar"),
   message: text("message").notNull(),
-  messageType: varchar("message_type").default('text'), // text, file, system
-  metadata: json("metadata"), // For file attachments, mentions, etc.
-  replyTo: varchar("reply_to").references(() => chatMessages.id),
-  isEdited: boolean("is_edited").default(false),
-  editedAt: timestamp("edited_at"),
-  createdAt: timestamp("created_at").defaultNow(),
+  type: text("type", { enum: ["text", "file", "system"] }).default("text").notNull(),
+  attachments: jsonb("attachments"),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
 });
 
 export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({
   id: true,
-  isEdited: true,
-  editedAt: true,
-  createdAt: true,
+  timestamp: true,
 });
 
 export type ChatMessage = typeof chatMessages.$inferSelect;
