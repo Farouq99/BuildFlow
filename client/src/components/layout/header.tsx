@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Bell, Plus, Search } from "lucide-react";
-import type { User } from "@shared/schema";
+import MobileNav from "@/components/mobile/mobile-nav";
+import type { User } from "@/lib/schema";
 
 interface HeaderProps {
   title: string;
@@ -23,10 +24,8 @@ export default function Header({ title }: HeaderProps) {
     <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <button className="lg:hidden text-gray-600 hover:text-gray-900">
-            <i className="fas fa-bars"></i>
-          </button>
-          <h2 className="text-2xl font-semibold text-construction-gray">{title}</h2>
+          <MobileNav />
+          <h2 className="text-xl sm:text-2xl font-semibold text-construction-gray">{title}</h2>
         </div>
         
         <div className="flex items-center space-x-4">

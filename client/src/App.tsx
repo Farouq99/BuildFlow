@@ -13,6 +13,7 @@ import Documents from "@/pages/documents";
 import Team from "@/pages/team";
 import Expenses from "@/pages/expenses";
 import Payroll from "@/pages/payroll";
+import ProjectDetails from "@/pages/project-details";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
 
@@ -35,6 +36,7 @@ function Router() {
         <>
           <Route path="/" component={DashboardLayout} />
           <Route path="/projects" component={ProjectsLayout} />
+          <Route path="/projects/:id" component={ProjectDetailsLayout} />
           <Route path="/calculators" component={CalculatorsLayout} />
           <Route path="/documents" component={DocumentsLayout} />
           <Route path="/team" component={TeamLayout} />
@@ -126,6 +128,18 @@ function PayrollLayout() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header title="Payroll Management" />
         <Payroll />
+      </div>
+    </div>
+  );
+}
+
+function ProjectDetailsLayout() {
+  return (
+    <div className="flex h-screen overflow-hidden bg-gray-50">
+      <Sidebar />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header title="Project Details" />
+        <ProjectDetails />
       </div>
     </div>
   );

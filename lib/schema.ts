@@ -2,6 +2,7 @@ import { sql, relations } from 'drizzle-orm';
 import {
   index,
   jsonb,
+  json,
   pgTable,
   timestamp,
   varchar,
@@ -167,3 +168,55 @@ export const insertPayrollEntrySchema = createInsertSchema(payrollEntries).omit(
 
 export type PayrollEntry = typeof payrollEntries.$inferSelect;
 export type InsertPayrollEntry = z.infer<typeof insertPayrollEntrySchema>;
+
+// Project milestones and timeline
+export const milestones = pgTable("milestones", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").notNull().references(() => projects.id),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  status: varchar("status").default('pending'), // pending, in-progress, completed, overdue
+  priority: varchar("priority").default('medium'), // low, medium, high, critical
+  assignedTo: varchar("assigned_to").references(() => users.id),
+  dependencies: text("dependencies").array(), // Array of milestone IDs this depends on
+  progress: integer("progress").default(0), // 0-100 percentage
+  color: varchar("color").default('#3b82f6'), // Color for timeline display
+  position: integer("position").default(0), // For drag-and-drop ordering
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertMilestoneSchema = createInsertSchema(milestones).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type Milestone = typeof milestones.$inferSelect;
+export type InsertMilestone = z.infer<typeof insertMilestoneSchema>;
+
+// Real-time chat messages
+export const chatMessages = pgTable("chat_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").notNull().references(() => projects.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  message: text("message").notNull(),
+  messageType: varchar("message_type").default('text'), // text, file, system
+  metadata: json("metadata"), // For file attachments, mentions, etc.
+  replyTo: varchar("reply_to").references(() => chatMessages.id),
+  isEdited: boolean("is_edited").default(false),
+  editedAt: timestamp("edited_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({
+  id: true,
+  isEdited: true,
+  editedAt: true,
+  createdAt: true,
+});
+
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
