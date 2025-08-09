@@ -11,10 +11,11 @@ import { apiRequest } from '@/lib/queryClient';
 import { format } from 'date-fns';
 import ProjectTimeline from '@/components/timeline/project-timeline';
 import ProjectChat from '@/components/chat/project-chat';
+import ProjectHealthDashboard from '@/components/dashboard/project-health-dashboard';
 
 export default function ProjectDetails() {
   const { id } = useParams();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('health');
 
   // Fetch project details
   const { data: project, isLoading } = useQuery({
@@ -156,7 +157,11 @@ export default function ProjectDetails() {
 
       {/* Tabs for different views */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
-        <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:grid-cols-none lg:flex">
+        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:grid-cols-none lg:flex">
+          <TabsTrigger value="health" className="flex items-center gap-2">
+            <Activity className="h-4 w-4" />
+            <span className="hidden sm:inline">Health</span>
+          </TabsTrigger>
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             <span className="hidden sm:inline">Overview</span>
@@ -170,6 +175,10 @@ export default function ProjectDetails() {
             <span className="hidden sm:inline">Chat</span>
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="health">
+          <ProjectHealthDashboard projectId={project.id} />
+        </TabsContent>
 
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

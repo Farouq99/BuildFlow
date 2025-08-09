@@ -7,6 +7,7 @@ import ConcreteCalculator from "@/components/calculators/concrete-calculator";
 import MaterialEstimator from "@/components/calculators/material-estimator";
 import CostCalculator from "@/components/calculators/cost-calculator";
 import FileDropzone from "@/components/file-upload/file-dropzone";
+import HealthWidget from "./health-widget";
 
 export default function QuickTools() {
   const [openDialog, setOpenDialog] = useState<string | null>(null);
@@ -43,6 +44,11 @@ export default function QuickTools() {
 
   return (
     <>
+    <div className="lg:col-span-1 space-y-4">
+      {/* Health Widget */}
+      <HealthWidget />
+      
+      {/* Quick Tools Card */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="p-6 border-b border-gray-100">
           <h3 className="text-lg font-semibold text-construction-gray">Quick Tools</h3>
@@ -81,6 +87,7 @@ export default function QuickTools() {
           </Link>
         </div>
       </div>
+    </div>
 
       {/* Tool Dialogs */}
       {currentTool && (
