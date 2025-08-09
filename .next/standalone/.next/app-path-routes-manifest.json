@@ -1,0 +1,15 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/api/auth/user/route": "/api/auth/user",
+  "/api/chat/route": "/api/chat",
+  "/api/health/route": "/api/health",
+  "/api/milestones/[id]/route": "/api/milestones/[id]",
+  "/api/milestones/route": "/api/milestones",
+  "/api/dashboard/stats/route": "/api/dashboard/stats",
+  "/api/expenses/[id]/approve/route": "/api/expenses/[id]/approve",
+  "/api/expenses/[id]/route": "/api/expenses/[id]",
+  "/api/expenses/categorize/route": "/api/expenses/categorize",
+  "/api/expenses/route": "/api/expenses",
+  "/api/projects/route": "/api/projects",
+  "/page": "/"
+}

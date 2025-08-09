@@ -3,6 +3,7 @@
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
+import { existsSync } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -53,29 +54,65 @@ if (isDevelopment) {
     nextServer.kill('SIGTERM');
   });
 } else {
-  // Production mode - this file is created by the build process
+  // Production mode
   console.log('Starting ConstructPro in production mode...');
   
-  // Import and start the Next.js production server
-  import('next').then((nextModule) => {
-    import('http').then((httpModule) => {
-      const next = nextModule.default;
-      const app = next({ dev: false });
-      const handle = app.getRequestHandler();
-      
-      app.prepare().then(() => {
-        const server = httpModule.createServer((req: any, res: any) => {
-          handle(req, res);
-        });
-        
-        const port = parseInt(process.env.PORT || '5000', 10);
-        server.listen(port, '0.0.0.0', () => {
-          console.log(`> Ready on http://0.0.0.0:${port}`);
-        });
-      });
+  // Check if .next directory exists, if not build it first
+  const nextDir = resolve(projectRoot, '.next');
+  if (!existsSync(nextDir)) {
+    console.log('Next.js build not found, building application...');
+    const buildProcess = spawn('next', ['build'], {
+      stdio: 'inherit',
+      shell: true,
+      env: process.env
     });
-  }).catch((error) => {
+    
+    buildProcess.on('exit', (code) => {
+      if (code === 0) {
+        console.log('Build completed successfully, starting production server...');
+        startProductionServer();
+      } else {
+        console.error('Build failed with code', code);
+        process.exit(1);
+      }
+    });
+  } else {
+    console.log('Next.js build found, starting production server...');
+    startProductionServer();
+  }
+}
+
+function startProductionServer() {
+  // Spawn the Next.js production server
+  const nextServer = spawn('next', ['start'], {
+    stdio: 'inherit',
+    shell: true,
+    env: process.env
+  });
+
+  // Handle server process events
+  nextServer.on('error', (error) => {
     console.error('Failed to start Next.js production server:', error);
     process.exit(1);
+  });
+
+  nextServer.on('exit', (code, signal) => {
+    if (code !== null) {
+      console.log(`Next.js production server exited with code ${code}`);
+    } else if (signal !== null) {
+      console.log(`Next.js production server terminated by signal ${signal}`);
+    }
+    process.exit(code || 0);
+  });
+
+  // Handle graceful shutdown
+  process.on('SIGINT', () => {
+    console.log('\nGracefully shutting down Next.js production server...');
+    nextServer.kill('SIGINT');
+  });
+
+  process.on('SIGTERM', () => {
+    console.log('\nGracefully shutting down Next.js production server...');
+    nextServer.kill('SIGTERM');
   });
 }
